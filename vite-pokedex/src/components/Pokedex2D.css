@@ -438,3 +438,17 @@ body {
 .fairy {
   background: #f9aeff;
 }
+
+/* add to Pokedex2D.css */
+.pokedex-3d-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* if Pokedex width was fixed, ensure it doesn't overflow when placed next to Card3D */
+.pokedex {
+  max-width: 800px;
+}
