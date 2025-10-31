@@ -10,7 +10,6 @@ function App() {
 
   return (
     <div className="app-with-3d">
-      <Card3D cardLabel="Pikachu" />
       <Pokedex2D />
     </div>
   )

@@ -13,9 +13,8 @@ body {
 .pokedex {
   align-items: flex-end;
   display: flex;
-  height: 590px;
-  margin: 50px;
-  width: 800px;
+  height: 100vh;
+  width: 100vw;
 }
 
 .left-container,
@@ -78,14 +77,14 @@ body {
 .left-container__main-section {
   height: 100%;
   padding: 25px;
-  width: 500px;
+  flex: 1;
 }
 
 .main-section__white {
   background: #dedede;
   border: 3px solid black;
   box-shadow: inset 0 0 3px 3px rgba(0, 0, 0, 0.3);
-  height: 414px;
+  height: 527px;
 }
 
 .main-section__black {
@@ -295,7 +294,7 @@ body {
 .right-container__black {
   background: black;
   box-shadow: 0 0 2px 2px rgba(0, 0, 0, 0.3);
-  height: 417px;
+  height: 300px;
   padding: 10px;
 }
 
@@ -437,18 +436,4 @@ body {
 
 .fairy {
   background: #f9aeff;
-}
-
-/* add to Pokedex2D.css */
-.pokedex-3d-layout {
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  justify-content: center;
-  padding: 24px;
-}
-
-/* if Pokedex width was fixed, ensure it doesn't overflow when placed next to Card3D */
-.pokedex {
-  max-width: 800px;
 }
