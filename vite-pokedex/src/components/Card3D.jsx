@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { Canvas, useLoader } from "@react-three/fiber";
+import { Canvas, useLoader, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text3D } from "@react-three/drei";
 import backsideImg from "../assets/pokemon_card_backside.png";
 import "./Card3D.css";
@@ -178,8 +178,10 @@ function TypeEmblem({ type, position = [ -0.35, 0.6, 0.02 ] }) {
  * CardMesh: construye la carta y el texto 3D centrado.
  * La textura frontal se genera desde un canvas que puede usar como fondo
  * el color del tipo del pokemon.
+ *
+ * Ahora el grupo principal rota lentamente usando useFrame.
  */
-function CardMesh({ pokemon, useRightBlueBackground = false }) {
+function CardMesh({ pokemon, useRightBlueBackground = false, rotationSpeed = 0.25 }) {
   const cardWidth = 1.4;
   const cardHeight = 1.9;
   const cardDepth = 0.03;
@@ -203,7 +205,7 @@ function CardMesh({ pokemon, useRightBlueBackground = false }) {
 
   // Decide which background colors to pass to the canvas generator
   const canvasColorBase = useRightBlueBackground
-    ? [RIGHT_SCREEN_BLUE, RIGHT_SCREEN_BLUE] 
+    ? [RIGHT_SCREEN_BLUE, RIGHT_SCREEN_BLUE] // solid blue background
     : colorBase;
 
   // Crear canvasTexture que incorpora fondo coloreado y (si existe) el sprite
@@ -260,8 +262,20 @@ function CardMesh({ pokemon, useRightBlueBackground = false }) {
   const emblemY = cardHeight / 2 - 0.36;
   const emblemZ = cardDepth / 2 + 0.01;
 
+  // group ref for rotation
+  const groupRef = useRef();
+
+  // rotate the card group slowly on every frame
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+    // Small gentle rotation around Y axis. Multiply delta by rotationSpeed to control speed.
+    groupRef.current.rotation.y += delta * rotationSpeed;
+    // Optional: tiny slow tilt animation for liveliness
+    groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.25) * 0.02;
+  });
+
   return (
-    <group>
+    <group ref={groupRef}>
       {/* Body de la carta como una caja fina */}
       <mesh position={[0, 0, 0]}>
         <boxGeometry args={[cardWidth, cardHeight, cardDepth]} />
@@ -313,7 +327,7 @@ function CardMesh({ pokemon, useRightBlueBackground = false }) {
  * El background de la escena 3D permanece azul (RIGHT_SCREEN_BLUE). La
  * cara frontal de la carta usa el gradiente asociado al tipo del Pokémon.
  */
-export default function Card3D({ pokemon = null, useRightBlueBackground = true }) {
+export default function Card3D({ pokemon = null, useRightBlueBackground = true, rotationSpeed = 0.8 }) {
   // keep scene background always the right-side blue
   const sceneBg = RIGHT_SCREEN_BLUE;
 
@@ -325,7 +339,7 @@ export default function Card3D({ pokemon = null, useRightBlueBackground = true }
         <ambientLight intensity={0.7} />
         <directionalLight position={[5, 5, 5]} intensity={0.6} />
         <Suspense fallback={null}>
-          <CardMesh pokemon={pokemon} useRightBlueBackground={useRightBlueBackground} />
+          <CardMesh pokemon={pokemon} useRightBlueBackground={useRightBlueBackground} rotationSpeed={rotationSpeed} />
         </Suspense>
         <OrbitControls enablePan={false} enableZoom={true} />
       </Canvas>
