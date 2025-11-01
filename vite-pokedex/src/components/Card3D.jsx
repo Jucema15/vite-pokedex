@@ -29,12 +29,15 @@ const TYPE_COLORS = {
   fairy: ["#F9AEFF", "#E28FE0"],
 };
 
+// fallback blue used when there's no type or for other UI consistency
+const RIGHT_SCREEN_BLUE = "#43B0F2";
+
 /**
  * Crea y devuelve un canvas que dibuja:
  * - fondo (gradiente según colorBase)
  * - opcional sprite (image param)
  *
- * NOTE: ya no dibuja el nombre en el canvas (el texto se renderiza solo con Text3D).
+ * Ajusté los valores maxSpriteW / maxSpriteH para que el sprite ocupe más espacio.
  */
 function createCardCanvas(image = null, colorBase = null, width = 512, height = 768) {
   const canvas = document.createElement("canvas");
@@ -83,30 +86,100 @@ function createCardCanvas(image = null, colorBase = null, width = 512, height = 
     ctx.stroke();
   } else {
     // Si hay image cargada, dibujarla centrada arriba
-    const maxSpriteW = width * 0.6;
-    const maxSpriteH = height * 0.35;
+    // Limites expandidos para sprite más grande
+    const maxSpriteW = width * 0.8;
+    const maxSpriteH = height * 0.55;
     let iw = image.width || maxSpriteW;
     let ih = image.height || maxSpriteH;
     const ratio = Math.min(maxSpriteW / iw, maxSpriteH / ih, 1);
     iw = iw * ratio;
     ih = ih * ratio;
     const ix = (width - iw) / 2;
-    const iy = cy - ih / 2 - 20;
+    const iy = cy - ih / 2 - 10; // ajuste vertical
     ctx.drawImage(image, ix, iy, iw, ih);
   }
-
-  // NOTE: hemos eliminado el dibujo del nombre en el canvas para que el texto
-  // sea mostrado únicamente con Text3D y evitar duplicados / solapamientos.
 
   return canvas;
 }
 
 /**
- * CardMesh: construye la carta y el texto 3D centrado.
- * La textura frontal se genera desde un canvas que ya no contiene el texto.
- * Ahora aplicamos una imagen en la parte trasera usando src/assets/pokemon_card_backside.png
+ * Small helper component rendered inside CardMesh to show a 3D emblem
+ * according to the primary type. Emblem is placed slightly in front of the
+ * card plane so it looks attached to the card surface.
  */
-function CardMesh({ pokemon }) {
+function TypeEmblem({ type, position = [ -0.35, 0.6, 0.02 ] }) {
+  // Common sizes (tweak as needed)
+  const color = (() => {
+    switch (type) {
+      case "fire": return "#FF8A33";
+      case "water": return "#2EA6FF";
+      case "grass": return "#4CC24A";
+      case "electric": return "#FFD23F";
+      case "ice": return "#AEEBFF";
+      default: return "#ffffff";
+    }
+  })();
+
+  // Choose geometry per type
+  switch ((type || "").toLowerCase()) {
+    case "fire":
+      // cone (flame-like)
+      return (
+        <mesh position={position} rotation={[Math.PI * 1.1, 0.3, 0]}>
+          <coneGeometry args={[0.18, 0.36, 32]} />
+          <meshStandardMaterial color={color} emissive={"#FF6A00"} emissiveIntensity={0.25} metalness={0.1} roughness={0.45} />
+        </mesh>
+      );
+
+    case "water":
+      // stretched sphere -> droplet
+      return (
+        <mesh position={position} rotation={[0, 0.2, 0]}>
+          <sphereGeometry args={[0.18, 32, 32]} />
+          <meshStandardMaterial color={color} metalness={0.2} roughness={0.2} transparent opacity={0.95} />
+          {/* scale to elongate into a drop shape */}
+          <mesh scale={[1.0, 1.4, 0.8]} />
+        </mesh>
+      );
+
+    case "grass":
+      // flat plane representing a stylized leaf (slightly tilted)
+      return (
+        <mesh position={position} rotation={[ -0.6, 0, -0.35 ]}>
+          <planeGeometry args={[0.48, 0.26, 1, 1]} />
+          <meshStandardMaterial color={color} metalness={0.05} roughness={0.5} />
+        </mesh>
+      );
+
+    case "electric":
+      // triangular prism (cylinder with 3 radial segments)
+      return (
+        <mesh position={position} rotation={[0, 0, 0.0]}>
+          <cylinderGeometry args={[0.18, 0.18, 0.36, 3]} />
+          <meshStandardMaterial color={color} emissive={"#FFD23F"} emissiveIntensity={0.35} metalness={0.15} roughness={0.35} />
+        </mesh>
+      );
+
+    case "ice":
+      // octahedron / crystal-like
+      return (
+        <mesh position={position} rotation={[0.4, 0.2, 0]}>
+          <octahedronGeometry args={[0.18, 0]} />
+          <meshStandardMaterial color={color} metalness={0.05} roughness={0.05} transparent opacity={0.95} />
+        </mesh>
+      );
+
+    default:
+      return null;
+  }
+}
+
+/**
+ * CardMesh: construye la carta y el texto 3D centrado.
+ * La textura frontal se genera desde un canvas que puede usar como fondo
+ * el color del tipo del pokemon.
+ */
+function CardMesh({ pokemon, useRightBlueBackground = false }) {
   const cardWidth = 1.4;
   const cardHeight = 1.9;
   const cardDepth = 0.03;
@@ -128,15 +201,20 @@ function CardMesh({ pokemon }) {
   const backsideTexture = (Array.isArray(backsideTextures) && backsideTextures.length) ? backsideTextures[0] : null;
   if (backsideTexture) backsideTexture.encoding = THREE.sRGBEncoding;
 
+  // Decide which background colors to pass to the canvas generator
+  const canvasColorBase = useRightBlueBackground
+    ? [RIGHT_SCREEN_BLUE, RIGHT_SCREEN_BLUE] 
+    : colorBase;
+
   // Crear canvasTexture que incorpora fondo coloreado y (si existe) el sprite
   const canvasTexture = useMemo(() => {
-    const canvas = createCardCanvas(spriteImage, colorBase, 512, 768);
+    const canvas = createCardCanvas(spriteImage, canvasColorBase, 512, 768);
     const tex = new THREE.CanvasTexture(canvas);
     tex.needsUpdate = true;
     tex.encoding = THREE.sRGBEncoding;
     return { tex, canvas };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spriteImage, primaryType]);
+  }, [spriteImage, primaryType, useRightBlueBackground]);
 
   // cleanup canvasTexture when pokemon changes / component unmounts
   useEffect(() => {
@@ -177,20 +255,32 @@ function CardMesh({ pokemon }) {
     mesh.renderOrder = 1;
   }, [pokemon?.name]);
 
+  // emblem placement: top-left corner of the card surface (tweak if needed)
+  const emblemX = -cardWidth / 2 + 0.28;
+  const emblemY = cardHeight / 2 - 0.36;
+  const emblemZ = cardDepth / 2 + 0.01;
+
   return (
     <group>
       {/* Body de la carta como una caja fina */}
       <mesh position={[0, 0, 0]}>
         <boxGeometry args={[cardWidth, cardHeight, cardDepth]} />
-        {/* mantener un color base para los bordes */}
+        {/* Mantener un color para los bordes del cuerpo */}
         <meshStandardMaterial color={0xc62828} metalness={0.2} roughness={0.6} />
       </mesh>
 
-      {/* Plane frontal con la textura basada en canvas (con fondo coloreado) */}
+      {/* Plane frontal con la textura basada en canvas (con fondo coloreado por tipo) */}
       <mesh position={[0, 0, cardDepth / 2 + 0.001]}>
         <planeGeometry args={[cardWidth - 0.02, cardHeight - 0.02]} />
         <meshStandardMaterial map={canvasTexture.tex} />
       </mesh>
+
+      {/* 3D emblem - placed slightly in front of the card plane */}
+      {primaryType && (
+        <group position={[emblemX, emblemY, emblemZ]}>
+          <TypeEmblem type={primaryType} position={[0, 0, 0]} />
+        </group>
+      )}
 
       {/* Plane trasero usando la imagen en assets */}
       {backsideTexture && (
@@ -220,15 +310,22 @@ function CardMesh({ pokemon }) {
 
 /**
  * Componente principal Card3D que usa react-three/fiber + drei.
+ * El background de la escena 3D permanece azul (RIGHT_SCREEN_BLUE). La
+ * cara frontal de la carta usa el gradiente asociado al tipo del Pokémon.
  */
-export default function Card3D({ pokemon = null }) {
+export default function Card3D({ pokemon = null, useRightBlueBackground = true }) {
+  // keep scene background always the right-side blue
+  const sceneBg = RIGHT_SCREEN_BLUE;
+
   return (
     <div className="card3d-container">
       <Canvas camera={{ position: [0, 0.4, 2.6], fov: 45 }}>
+        {/* keep scene background solid blue */}
+        <color attach="background" args={[sceneBg]} />
         <ambientLight intensity={0.7} />
         <directionalLight position={[5, 5, 5]} intensity={0.6} />
         <Suspense fallback={null}>
-          <CardMesh pokemon={pokemon} />
+          <CardMesh pokemon={pokemon} useRightBlueBackground={useRightBlueBackground} />
         </Suspense>
         <OrbitControls enablePan={false} enableZoom={true} />
       </Canvas>

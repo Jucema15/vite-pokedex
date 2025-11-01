@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import "./Pokedex2D.css";
+import usePokeApi from "../hooks/usePokeApi";
+import Card3D from "./Card3D";
 
 const TYPES = [
   'normal', 'fighting', 'flying',
@@ -14,31 +16,25 @@ const LIST_LENGTH = 20;
 const capitalize = (str) => str ? str[0].toUpperCase() + str.substr(1) : "";
 
 function Pokedex2D() {
-  const [pokeList, setPokeList] = useState([]);
-  const [prevUrl, setPrevUrl] = useState(null);
-  const [nextUrl, setNextUrl] = useState(null);
-  const [pokeData, setPokeData] = useState(null);
+  // Use existing hook / services instead of manual fetch
+  const {
+    pokeList,
+    prevUrl,
+    nextUrl,
+    loadingList,
+    pokeData,
+    loadingPoke,
+    error,
+    fetchList,
+    fetchPokemon,
+    setPokeData, // kept in case you want to clear selection externally
+  } = usePokeApi(LIST_LENGTH);
 
+  // initial load
   useEffect(() => {
-    fetchPokeList("https://pokeapi.co/api/v2/pokemon?offset=0&limit=" + LIST_LENGTH);
+    fetchList(); // uses default URL with the limit passed to the hook
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  function fetchPokeList(url) {
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        setPrevUrl(data.previous);
-        setNextUrl(data.next);
-        setPokeList(data.results || []);
-        setPokeData(null); // Limpiar selección al cambiar página
-      });
-  }
-
-  function fetchPokeDataById(id) {
-    fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
-      .then(res => res.json())
-      .then(data => setPokeData(data));
-  }
 
   function renderList() {
     let items = [];
@@ -47,15 +43,16 @@ function Pokedex2D() {
       if (poke) {
         const urlArray = poke.url.split("/");
         const id = urlArray[urlArray.length - 2];
+        const label = id + ". " + capitalize(poke.name);
         items.push(
           <div
             key={id}
-            className="list-item"
-            onClick={() => fetchPokeDataById(id)}
+            className={`list-item ${pokeData?.id === Number(id) ? "active" : ""}`}
+            onClick={() => fetchPokemon(id)}
             tabIndex={0}
-            style={{outline: "none"}}
+            style={{ outline: "none" }}
           >
-            {id + ". " + capitalize(poke.name)}
+            {label}
           </div>
         );
       } else {
@@ -67,57 +64,108 @@ function Pokedex2D() {
     return items;
   }
 
-  function renderPokeScreen() {
-    if (!pokeData) {
-      return <div className="main-screen hide"></div>;
+  // Left content: when selected show Card3D on the left and info to the right
+  function renderLeftContent() {
+    if (loadingPoke && !pokeData) {
+      return (
+        <div className="main-screen" style={{ padding: 20, color: "white" }}>
+          Loading Pokémon...
+        </div>
+      );
     }
-    const dataTypes = pokeData.types || [];
-    const firstType = dataTypes[0]?.type?.name;
-    const secondType = dataTypes[1]?.type?.name;
-    const mainScreenClasses = ["main-screen"];
-    if (firstType && TYPES.includes(firstType)) mainScreenClasses.push(firstType);
+    if (error && !pokeData) {
+      return (
+        <div className="main-screen" style={{ padding: 20, color: "white" }}>
+          Error: {error}
+        </div>
+      );
+    }
 
-    return (
-      <div className={mainScreenClasses.join(" ")}>
-        <div className="screen__header">
-          <span className="poke-name">{capitalize(pokeData.name)}</span>
-          <span className="poke-id">#{pokeData.id.toString().padStart(3, "0")}</span>
-        </div>
-        <div className="screen__image">
-          <img
-            src={pokeData.sprites?.front_default || ""}
-            className="poke-front-image"
-            alt="front"
-          />
-          <img
-            src={pokeData.sprites?.back_default || ""}
-            className="poke-back-image"
-            alt="back"
-          />
-        </div>
-        <div className="screen__description">
-          <div className="stats__types">
-            <span className="poke-type-one">
-              {firstType ? capitalize(firstType) : ""}
-            </span>
-            {secondType ? (
-              <span className="poke-type-two">{capitalize(secondType)}</span>
-            ) : (
-              <span className="poke-type-two hide"></span>
-            )}
+    if (pokeData) {
+      const primaryType = pokeData.types?.[0]?.type?.name;
+      return (
+        <div
+          className="card-and-info"
+          style={{
+            display: "flex",
+            width: "100%",
+            height: "100%",
+            gap: 20,
+            alignItems: "center",
+            boxSizing: "border-box",
+            padding: "12px",
+          }}
+        >
+          {/* Left: 3D Card aligned to the left */}
+          <div
+            className="card-left"
+            style={{
+              flex: "0 0 360px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {/* pass useRightBlueBackground={true} to match the blue background */}
+            <Card3D pokemon={pokeData} useRightBlueBackground={false} />
           </div>
-          <div className="screen__stats">
-            <p className="stats__weight">
-              weight: <span className="poke-weight">{pokeData.weight}</span>
-            </p>
-            <p className="stats__height">
-              height: <span className="poke-height">{pokeData.height}</span>
-            </p>
+
+          {/* Right: textual info (name, id, type) */}
+          <div
+            className="card-info-right"
+            style={{
+              flex: "1 1 auto",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "flex-start",
+              gap: 12,
+              color: "#fff", // main-screen background for selected is blue, keep text white
+              paddingRight: 12,
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: "2rem", textTransform: "capitalize" }}>
+              {capitalize(pokeData.name)}
+            </h2>
+            <div style={{ fontSize: "1.05rem", opacity: 0.95 }}>
+              <strong>ID:</strong> #{pokeData.id.toString().padStart(3, "0")}
+            </div>
+            <div style={{ marginTop: 6 }}>
+              <strong>Tipo:</strong>{" "}
+              <span
+                className="poke-type-badge"
+                style={{
+                  display: "inline-block",
+                  padding: "6px 10px",
+                  borderRadius: 12,
+                  background: "rgba(255,255,255,0.12)",
+                  color: "#fff",
+                  textTransform: "capitalize",
+                }}
+              >
+                {primaryType ? capitalize(primaryType) : "—"}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    );
+      );
+    }
+
+    // fallback: no selection
+    return <div className="main-screen hide"></div>;
   }
+
+  // Use the same blue as the right side screen: #43B0F2
+  const RIGHT_SCREEN_BLUE = "#43B0F2";
+
+  // inline style for the inner black area; when pokeData exists paint the right-side blue
+  const mainBlackInlineStyle = {
+    height: "92%",
+    padding: 0,
+    boxSizing: "border-box",
+    background: pokeData ? RIGHT_SCREEN_BLUE : undefined,
+    color: pokeData ? "#fff" : undefined, // keep text readable on blue
+  };
 
   return (
     <div className="pokedex">
@@ -131,12 +179,14 @@ function Pokedex2D() {
           </div>
         </div>
         <div className="left-container__main-section-container">
-          <div className="left-container__main-section">
-            <div className="main-section__white">
-              <div className="main-section__black">
-                {renderPokeScreen()}
+          <div className="left-container__main-section" style={{ padding: 16 }}>
+            <div className="main-section__white" style={{ height: "88%" }}>
+              <div className="main-section__black" style={mainBlackInlineStyle}>
+                {renderLeftContent()}
               </div>
             </div>
+
+            {/* CONTROLLERS: always visible */}
             <div className="left-container__controllers">
               <div className="controllers__d-pad">
                 <div className="d-pad__cell top"></div>
@@ -151,28 +201,31 @@ function Pokedex2D() {
               </div>
             </div>
           </div>
+
+          {/* HINGES: always visible */}
           <div className="left-container__right">
             <div className="left-container__hinge"></div>
             <div className="left-container__hinge"></div>
           </div>
         </div>
       </div>
+
       <div className="right-container">
         <div className="right-container__black">
           <div className="right-container__screen">
-            {renderList()}
+            {loadingList ? <div style={{ color: "white", padding: 8 }}>Loading list...</div> : renderList()}
           </div>
         </div>
         <div className="right-container__buttons">
           <div
             className="left-button"
-            onClick={() => prevUrl && fetchPokeList(prevUrl)}
+            onClick={() => prevUrl && fetchList(prevUrl)}
           >
             Prev
           </div>
           <div
             className="right-button"
-            onClick={() => nextUrl && fetchPokeList(nextUrl)}
+            onClick={() => nextUrl && fetchList(nextUrl)}
           >
             Next
           </div>
