@@ -3,11 +3,6 @@ import { getPokeList, getPokemonById } from "../services/pokeApiService";
 
 /**
  * usePokeApi - hook que encapsula llamadas a PokeAPI, estado de carga y errores.
- *
- * Retorna:
- * - pokeList, prevUrl, nextUrl, loadingList
- * - pokeData, loadingPoke
- * - fetchList(url), fetchPokemon(id)
  */
 export default function usePokeApi(initialLimit = 20) {
   const [pokeList, setPokeList] = useState([]);
@@ -21,7 +16,9 @@ export default function usePokeApi(initialLimit = 20) {
   const [error, setError] = useState(null);
 
   const fetchList = useCallback(
-    async (url = `https://pokeapi.co/api/v2/pokemon?offset=0&limit=${initialLimit}`) => {
+    async (
+      url = `https://pokeapi.co/api/v2/pokemon?offset=0&limit=${initialLimit}`
+    ) => {
       setLoadingList(true);
       setError(null);
       try {
@@ -67,7 +64,6 @@ export default function usePokeApi(initialLimit = 20) {
     error,
     fetchList,
     fetchPokemon,
-    // setters if outside needs to clear selection
     setPokeData,
   };
 }

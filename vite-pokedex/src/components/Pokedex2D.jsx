@@ -4,19 +4,78 @@ import usePokeApi from "../hooks/usePokeApi";
 import Card3D from "./Card3D";
 
 const TYPES = [
-  'normal', 'fighting', 'flying',
-  'poison', 'ground', 'rock',
-  'bug', 'ghost', 'steel',
-  'fire', 'water', 'grass',
-  'electric', 'psychic', 'ice',
-  'dragon', 'dark', 'fairy'
+  "normal",
+  "fighting",
+  "flying",
+  "poison",
+  "ground",
+  "rock",
+  "bug",
+  "ghost",
+  "steel",
+  "fire",
+  "water",
+  "grass",
+  "electric",
+  "psychic",
+  "ice",
+  "dragon",
+  "dark",
+  "fairy",
 ];
 const LIST_LENGTH = 20;
 
-const capitalize = (str) => str ? str[0].toUpperCase() + str.substr(1) : "";
+const capitalize = (str) => (str ? str[0].toUpperCase() + str.substr(1) : "");
+
+function Spinner({ size = 48, color = "#fff" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 50 50" aria-hidden>
+      <circle
+        cx="25"
+        cy="25"
+        r="20"
+        stroke={color}
+        strokeWidth="5"
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray="31.4 31.4"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="0 25 25"
+          to="360 25 25"
+          dur="1s"
+          repeatCount="indefinite"
+        />
+      </circle>
+    </svg>
+  );
+}
+
+function LoadingScreen({ text = "Loading...", color = "#fff" }) {
+  return (
+    <div
+      className="main-screen"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        boxSizing: "border-box",
+        padding: 20,
+        color,
+      }}
+    >
+      <div style={{ textAlign: "center" }}>
+        <Spinner size={56} color={color} />
+        <div style={{ marginTop: 12, fontSize: 16 }}>{text}</div>
+      </div>
+    </div>
+  );
+}
 
 function Pokedex2D() {
-  // Use existing hook / services instead of manual fetch
   const {
     pokeList,
     prevUrl,
@@ -27,13 +86,11 @@ function Pokedex2D() {
     error,
     fetchList,
     fetchPokemon,
-    setPokeData, // kept in case you want to clear selection externally
+    setPokeData,
   } = usePokeApi(LIST_LENGTH);
 
-  // initial load
   useEffect(() => {
-    fetchList(); // uses default URL with the limit passed to the hook
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchList();
   }, []);
 
   function renderList() {
@@ -47,7 +104,9 @@ function Pokedex2D() {
         items.push(
           <div
             key={id}
-            className={`list-item ${pokeData?.id === Number(id) ? "active" : ""}`}
+            className={`list-item ${
+              pokeData?.id === Number(id) ? "active" : ""
+            }`}
             onClick={() => fetchPokemon(id)}
             tabIndex={0}
             style={{ outline: "none" }}
@@ -56,22 +115,18 @@ function Pokedex2D() {
           </div>
         );
       } else {
-        items.push(
-          <div key={i} className="list-item"></div>
-        );
+        items.push(<div key={i} className="list-item"></div>);
       }
     }
     return items;
   }
 
-  // Left content: when selected show Card3D on the left and info to the right
   function renderLeftContent() {
+    if (loadingList) {
+      return <LoadingScreen text="Cargando PokéDex..." color="#fff" />;
+    }
     if (loadingPoke && !pokeData) {
-      return (
-        <div className="main-screen" style={{ padding: 20, color: "white" }}>
-          Loading Pokémon...
-        </div>
-      );
+      return <LoadingScreen text="Cargando Pokémon..." color="#fff" />;
     }
     if (error && !pokeData) {
       return (
@@ -96,7 +151,6 @@ function Pokedex2D() {
             padding: "12px",
           }}
         >
-          {/* Left: 3D Card aligned to the left */}
           <div
             className="card-left"
             style={{
@@ -106,11 +160,9 @@ function Pokedex2D() {
               justifyContent: "center",
             }}
           >
-            {/* pass useRightBlueBackground={true} to match the blue background */}
             <Card3D pokemon={pokeData} useRightBlueBackground={false} />
           </div>
 
-          {/* Right: textual info (name, id, type) */}
           <div
             className="card-info-right"
             style={{
@@ -120,11 +172,17 @@ function Pokedex2D() {
               justifyContent: "center",
               alignItems: "flex-start",
               gap: 12,
-              color: "#fff", // main-screen background for selected is blue, keep text white
+              color: "#fff",
               paddingRight: 12,
             }}
           >
-            <h2 style={{ margin: 0, fontSize: "2rem", textTransform: "capitalize" }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: "2rem",
+                textTransform: "capitalize",
+              }}
+            >
               {capitalize(pokeData.name)}
             </h2>
             <div style={{ fontSize: "1.05rem", opacity: 0.95 }}>
@@ -151,20 +209,17 @@ function Pokedex2D() {
       );
     }
 
-    // fallback: no selection
     return <div className="main-screen hide"></div>;
   }
 
-  // Use the same blue as the right side screen: #43B0F2
   const RIGHT_SCREEN_BLUE = "#43B0F2";
 
-  // inline style for the inner black area; when pokeData exists paint the right-side blue
   const mainBlackInlineStyle = {
     height: "92%",
     padding: 0,
     boxSizing: "border-box",
     background: pokeData ? RIGHT_SCREEN_BLUE : undefined,
-    color: pokeData ? "#fff" : undefined, // keep text readable on blue
+    color: pokeData ? "#fff" : undefined,
   };
 
   return (
@@ -182,11 +237,21 @@ function Pokedex2D() {
           <div className="left-container__main-section" style={{ padding: 16 }}>
             <div className="main-section__white" style={{ height: "88%" }}>
               <div className="main-section__black" style={mainBlackInlineStyle}>
-                {renderLeftContent()}
+                {loadingList || (loadingPoke && !pokeData) ? (
+                  <LoadingScreen
+                    text={
+                      loadingList
+                        ? "Cargando PokéDex..."
+                        : "Cargando Pokémon..."
+                    }
+                    color="#fff"
+                  />
+                ) : (
+                  renderLeftContent()
+                )}
               </div>
             </div>
 
-            {/* CONTROLLERS: always visible */}
             <div className="left-container__controllers">
               <div className="controllers__d-pad">
                 <div className="d-pad__cell top"></div>
@@ -202,7 +267,6 @@ function Pokedex2D() {
             </div>
           </div>
 
-          {/* HINGES: always visible */}
           <div className="left-container__right">
             <div className="left-container__hinge"></div>
             <div className="left-container__hinge"></div>
@@ -212,8 +276,32 @@ function Pokedex2D() {
 
       <div className="right-container">
         <div className="right-container__black">
-          <div className="right-container__screen">
-            {loadingList ? <div style={{ color: "white", padding: 8 }}>Loading list...</div> : renderList()}
+          <div
+            className="right-container__screen"
+            style={{ position: "relative", minHeight: 200 }}
+          >
+            {loadingList ? (
+              <div
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  padding: 16,
+                  boxSizing: "border-box",
+                }}
+              >
+                <div style={{ textAlign: "center" }}>
+                  <Spinner size={48} color="#fff" />
+                  <div style={{ marginTop: 10 }}>
+                    Cargando lista de Pokémon...
+                  </div>
+                </div>
+              </div>
+            ) : (
+              renderList()
+            )}
           </div>
         </div>
         <div className="right-container__buttons">
