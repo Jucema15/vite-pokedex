@@ -1,5 +1,7 @@
 Proyecto Pokedex haciendo uso de Vite y React
 
+Para ejecutar el proyecto ingrese a la carpeta vite-pokedex, ejecute el npm install para descargar las dependencias y ejecute el proyecto con npm run dev.
+
 1. Integrantes (nombres completos y roles elegidos).
    - Julio Cesar Mantilla Ramirez (BackEnd, FrontEnd, Lider de proyecto, Manager, etc)
 
