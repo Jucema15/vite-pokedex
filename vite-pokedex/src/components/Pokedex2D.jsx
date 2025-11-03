@@ -1,31 +1,19 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import "./Pokedex2D.css";
 import usePokeApi from "../hooks/usePokeApi";
 import Card3D from "./Card3D";
 
 const TYPES = [
-  "normal",
-  "fighting",
-  "flying",
-  "poison",
-  "ground",
-  "rock",
-  "bug",
-  "ghost",
-  "steel",
-  "fire",
-  "water",
-  "grass",
-  "electric",
-  "psychic",
-  "ice",
-  "dragon",
-  "dark",
-  "fairy",
+  'normal', 'fighting', 'flying',
+  'poison', 'ground', 'rock',
+  'bug', 'ghost', 'steel',
+  'fire', 'water', 'grass',
+  'electric', 'psychic', 'ice',
+  'dragon', 'dark', 'fairy'
 ];
 const LIST_LENGTH = 20;
 
-const capitalize = (str) => (str ? str[0].toUpperCase() + str.substr(1) : "");
+const capitalize = (str) => str ? str[0].toUpperCase() + str.substr(1) : "";
 
 function Spinner({ size = 48, color = "#fff" }) {
   return (
@@ -75,6 +63,12 @@ function LoadingScreen({ text = "Loading...", color = "#fff" }) {
   );
 }
 
+function getIdFromUrl(url) {
+  if (!url) return null;
+  const parts = url.split("/").filter(Boolean);
+  return parts[parts.length - 1] || parts[parts.length - 2] || null;
+}
+
 function Pokedex2D() {
   const {
     pokeList,
@@ -89,34 +83,76 @@ function Pokedex2D() {
     setPokeData,
   } = usePokeApi(LIST_LENGTH);
 
+  const [searchTerm, setSearchTerm] = useState("");
+
   useEffect(() => {
-    fetchList();
+    fetchList();  
   }, []);
+
+  const filteredList = useMemo(() => {
+    if (!searchTerm) return pokeList || [];
+    const q = searchTerm.trim().toLowerCase();
+    return (pokeList || []).filter((p) => {
+      if (!p) return false;
+      const name = p.name || "";
+      if (name.toLowerCase().includes(q)) return true;
+      const id = getIdFromUrl(p.url);
+      if (id && id.toString().startsWith(q)) return true;
+      if (q.startsWith("#") && id && ("#" + id).startsWith(q)) return true;
+      return false;
+    });
+  }, [pokeList, searchTerm]);
 
   function renderList() {
     let items = [];
-    for (let i = 0; i < LIST_LENGTH; i++) {
-      const poke = pokeList[i];
-      if (poke) {
-        const urlArray = poke.url.split("/");
-        const id = urlArray[urlArray.length - 2];
-        const label = id + ". " + capitalize(poke.name);
-        items.push(
-          <div
-            key={id}
-            className={`list-item ${
-              pokeData?.id === Number(id) ? "active" : ""
-            }`}
-            onClick={() => fetchPokemon(id)}
-            tabIndex={0}
-            style={{ outline: "none" }}
-          >
-            {label}
-          </div>
-        );
-      } else {
-        items.push(<div key={i} className="list-item"></div>);
+    const listToRender = searchTerm ? filteredList : (pokeList || []);
+    if (searchTerm && listToRender.length === 0) {
+      return (
+        <div style={{ padding: 12, color: "white" }}>
+          No se encontraron pokémones para "{searchTerm}"
+        </div>
+      );
+    }
+
+    if (!searchTerm) {
+      for (let i = 0; i < LIST_LENGTH; i++) {
+        const poke = listToRender[i];
+        if (poke) {
+          const id = getIdFromUrl(poke.url);
+          items.push(
+            <div
+              key={id || i}
+              className={`list-item ${pokeData?.id === Number(id) ? "active" : ""}`}
+              onClick={() => fetchPokemon(id)}
+              tabIndex={0}
+              style={{ outline: "none" }}
+            >
+              {id + ". " + capitalize(poke.name)}
+            </div>
+          );
+        } else {
+          items.push(
+            <div key={i} className="list-item"></div>
+          );
+        }
       }
+      return items;
+    }
+
+    for (let i = 0; i < listToRender.length; i++) {
+      const poke = listToRender[i];
+      const id = getIdFromUrl(poke.url);
+      items.push(
+        <div
+          key={id || i}
+          className={`list-item ${pokeData?.id === Number(id) ? "active" : ""}`}
+          onClick={() => fetchPokemon(id)}
+          tabIndex={0}
+          style={{ outline: "none" }}
+        >
+          {id + ". " + capitalize(poke.name)}
+        </div>
+      );
     }
     return items;
   }
@@ -160,7 +196,7 @@ function Pokedex2D() {
               justifyContent: "center",
             }}
           >
-            <Card3D pokemon={pokeData} useRightBlueBackground={false} />
+            <Card3D pokemon={pokeData} useRightBlueBackground={true} />
           </div>
 
           <div
@@ -176,13 +212,7 @@ function Pokedex2D() {
               paddingRight: 12,
             }}
           >
-            <h2
-              style={{
-                margin: 0,
-                fontSize: "2rem",
-                textTransform: "capitalize",
-              }}
-            >
+            <h2 style={{ margin: 0, fontSize: "2rem", textTransform: "capitalize" }}>
               {capitalize(pokeData.name)}
             </h2>
             <div style={{ fontSize: "1.05rem", opacity: 0.95 }}>
@@ -215,7 +245,7 @@ function Pokedex2D() {
   const RIGHT_SCREEN_BLUE = "#43B0F2";
 
   const mainBlackInlineStyle = {
-    height: "92%",
+    height: "87%",
     padding: 0,
     boxSizing: "border-box",
     background: pokeData ? RIGHT_SCREEN_BLUE : undefined,
@@ -237,15 +267,8 @@ function Pokedex2D() {
           <div className="left-container__main-section" style={{ padding: 16 }}>
             <div className="main-section__white" style={{ height: "88%" }}>
               <div className="main-section__black" style={mainBlackInlineStyle}>
-                {loadingList || (loadingPoke && !pokeData) ? (
-                  <LoadingScreen
-                    text={
-                      loadingList
-                        ? "Cargando PokéDex..."
-                        : "Cargando Pokémon..."
-                    }
-                    color="#fff"
-                  />
+                {(loadingList || (loadingPoke && !pokeData)) ? (
+                  <LoadingScreen text={loadingList ? "Cargando PokéDex..." : "Cargando Pokémon..."} color="#fff" />
                 ) : (
                   renderLeftContent()
                 )}
@@ -276,31 +299,58 @@ function Pokedex2D() {
 
       <div className="right-container">
         <div className="right-container__black">
-          <div
-            className="right-container__screen"
-            style={{ position: "relative", minHeight: 200 }}
-          >
-            {loadingList ? (
-              <div
+          <div className="right-container__screen" style={{ position: "relative", minHeight: 200 }}>
+            <div style={{ padding: 10, boxSizing: "border-box", display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                aria-label="Buscar Pokémon"
+                placeholder="Buscar por nombre o id (ej. pikachu o 25)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 style={{
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  flex: 1,
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: "rgba(0,0,0,0.25)",
                   color: "#fff",
-                  padding: 16,
-                  boxSizing: "border-box",
                 }}
-              >
+              />
+              {searchTerm ? (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.08)",
+                    color: "#fff",
+                    border: "none",
+                    cursor: "pointer"
+                  }}
+                >
+                  Limpiar
+                </button>
+              ) : null}
+            </div>
+
+            {loadingList ? (
+              <div style={{
+                height: "calc(100% - 64px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                padding: 16,
+                boxSizing: "border-box"
+              }}>
                 <div style={{ textAlign: "center" }}>
                   <Spinner size={48} color="#fff" />
-                  <div style={{ marginTop: 10 }}>
-                    Cargando lista de Pokémon...
-                  </div>
+                  <div style={{ marginTop: 10 }}>Cargando lista de Pokémon...</div>
                 </div>
               </div>
             ) : (
-              renderList()
+              <div style={{ padding: "8px 10px", boxSizing: "border-box", height: '79%', display: 'flex', flexWrap: 'inherit' }}>
+                {renderList()}
+              </div>
             )}
           </div>
         </div>
